@@ -154,7 +154,7 @@ public class AdsHelper {
 //     android:layout_alignParentBottom="true">
 // </FrameLayout>
 
-///////// REquered for all Activities using banner:
+///////// Required for all Activities using banner:
 //@Override
 // protected void onPause() {
 //     IronSource.onPause(this);
