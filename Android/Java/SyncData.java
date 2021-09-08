@@ -7,7 +7,8 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.zerotohero.android.exemple.BuildConfig;
-import com.zerotohero.android.exemple.GFX;
+import com.zerotohero.android.exemple.CNST;
+import com.zerotohero.android.exemple.Models.ModelsTips;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -24,50 +25,51 @@ import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class SynAd extends AsyncTask<String,String,String> {
+public abstract class SynContent extends AsyncTask<String,String,String> {
 
     protected abstract void onDataPreExecute();
-    protected abstract void onDataExecute(String result,String status);
-    protected abstract void onAdResult(String networkDefault,String adMobID,String bannerAdMob,String interstitialAdMob,
-                                       String nativeAdMob,String bannerFacebook,String interstitialFacebook,String nativeFacebook, String ironSource);
-
+    protected abstract void onDataExecute(String Result, List<Object> objects,String status);
 
     protected ConnectivityManager connectivityManager ;
     protected NetworkInfo activeNetworkInfo;
     protected OutputStreamWriter outputStreamWriter;
     protected BufferedReader bufferedReader;
+    protected InputStream inputStream;
 
     protected Context context ;
     protected String urlLink;
-    protected String networkDefault;
-    protected String ironSource;
-    protected String adMobID;
-    protected String bannerAdMob;
-    protected String interstitialAdMob;
-    protected String nativeAdMob;
-    protected String bannerFacebook;
-    protected String interstitialFacebook;
-    protected String nativeFacebook;
-
+    protected String position;
     protected HttpURLConnection connection;
     protected URL url = null;
     protected File file ;
 
     protected String path ="Data.json";
+    protected String json;
     protected String status ;
+    private List<Object> objects = new ArrayList<>();
 
-    public SynAd(Context context, String urlLink) {
+
+    public SynContent(Context context,String urlLink,String position) {
         this.context = context;
         this.urlLink = urlLink;
+        this.position = position;
     }
-    public SynAd(Context context) {
+    public SynContent(Context context,String position) {
         this.context = context;
+        this.position = position;
     }
 
     @Override
     protected String doInBackground(String... strings) {
-        return buildConnection();
+        if (CNST.ONLINE_OFFLINE){
+            return buildConnection();
+        }else {
+            return AddingDataList(getJSONOBJECT());
+        }
+
     }
 
     @Override
@@ -79,58 +81,74 @@ public abstract class SynAd extends AsyncTask<String,String,String> {
     @Override
     protected void onPostExecute(String s) {
         super.onPostExecute(s);
-
-        getDataAd(s);
-        onAdResult(networkDefault,adMobID,bannerAdMob,interstitialAdMob,
-                nativeAdMob,bannerFacebook,interstitialFacebook,nativeFacebook, ironSource);
-        onDataExecute(s,status);
+        if (CNST.ONLINE_OFFLINE){
+            AddingDataList(s);
+        }
+        onDataExecute(s,objects,status);
     }
 
 
-    protected String getDataAd(String result){
+
+    private String AddingDataList(String result ){
 
         try {
-            JSONObject urlObject = new JSONObject(result);
-            JSONObject jsObj = urlObject.getJSONObject(GFX.JsObject);
-            JSONArray infoArray = jsObj.getJSONArray(GFX.JsArrayAds);
 
-            for (int j=0 ; j< infoArray.length() ; j++){
+            JSONObject urlObject = new JSONObject(result);
+            JSONObject jsObj = urlObject.getJSONObject(CNST.JsObject);
+            JSONArray infoArray = jsObj.getJSONArray(CNST.JsArray+position);
+
+            for (int j= 0 ; j< infoArray.length() ; j++){
 
                 JSONObject info = infoArray.getJSONObject(j);
 
-                networkDefault = info.getString(GFX.JsObjectNetworkAds);
-                adMobID = info.getString(GFX.JsObjectAdID);
-
-                bannerAdMob = info.getString(GFX.JsObjectAdBanner);
-                interstitialAdMob = info.getString(GFX.JsObjectAdInterstitial);
-                nativeAdMob = info.getString(GFX.JsObjectAdNative);
-
-                bannerFacebook = info.getString(GFX.JsObjectFbBanner);
-                interstitialFacebook = info.getString(GFX.JsObjectFbInterstitial);
-                nativeFacebook = info.getString(GFX.JsObjectFbNative);
-
-                ironSource = info.getString(GFX.JsObjectIronSource);
-
+                String content = info.getString(CNST.Jscontent);
+                String image = info.getString(CNST.Jsimage);
+                String order = info.getString(CNST.Jsorder);
+                String text_size = info.getString(CNST.JStext_size);
+                String color = info.getString(CNST.Jscolor);
+                String style = info.getString(CNST.Jsstyle);
+                String gravity = info.getString(CNST.Jsgravity);
+                String left = info.getString(CNST.Jsleft);
+                String isLink = info.getString(CNST.JsisLink);
+                String setLinks = info.getString(CNST.JssetLinks);
+                String linkTitle = info.getString(CNST.JslinkTitle);
+                String setNativeAds = info.getString(CNST.JssetNativeAds);
+                ModelsTips data = new ModelsTips(content,image,order,text_size,color,style,gravity,left,isLink,linkTitle,setLinks,setNativeAds);
+                objects.add(data);
 
             }
             if (BuildConfig.DEBUG){
-                Log.d("SyncAd","Data Ad done !");
+                Log.d("SyncData","Adding Content");
             }
-            status = GFX.Tags.DONE;
+            status = CNST.Tags.DONE;
 
         } catch (JSONException e) {
             if (BuildConfig.DEBUG){
-                Log.d("SyncAd","JsonException error causes : "+e);
+                Log.d("SyncData","JsonException error causes : "+e);
             }
-            status = GFX.Tags.FAILED;
-            return GFX.Tags.FAILED ;
+            status = CNST.Tags.FAILED;
+            return CNST.Tags.FAILED;
         }
-        return GFX.Tags.DONE;
-
-
+        return CNST.Tags.DONE;
     }
 
 
+    protected String getJSONOBJECT() {
+
+        try {
+            inputStream = context.getAssets().open(CNST.JSONDATA_off);
+            int size = inputStream.available();
+            byte[] buffer = new byte[size];
+            inputStream.read(buffer);
+            inputStream.close();
+            json = new String(buffer, "UTF-8");
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
+        }
+        return json;
+
+    }
 
     protected String buildConnection(){
 
@@ -138,12 +156,12 @@ public abstract class SynAd extends AsyncTask<String,String,String> {
         if (checkConnection()) {
             try {
                 url = new URL(urlLink);
+
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
 
             try {
-
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setReadTimeout(15000);
                 connection.setConnectTimeout(10000);
@@ -171,7 +189,8 @@ public abstract class SynAd extends AsyncTask<String,String,String> {
 
                 }
             } catch (IOException e2) {
-                return GFX.Tags.FAILED;
+                e2.printStackTrace();
+                return CNST.Tags.FAILED;
             } finally {
                 connection.disconnect();
             }
@@ -185,7 +204,7 @@ public abstract class SynAd extends AsyncTask<String,String,String> {
                 return e.toString();
             }
         }
-        return GFX.Tags.DONE;
+        return CNST.Tags.DONE;
     }
 
     protected void writeJsonToFile(String data, Context context) {
@@ -242,5 +261,32 @@ public abstract class SynAd extends AsyncTask<String,String,String> {
         }
         return false;
     }
+}
+
+
+// Usage
+
+private void setBridgeOnline(String link, String position){
+    new SynContent(getApplicationContext(),link,position) {
+
+        @Override
+        protected void onDataPreExecute() {
+            showLoading(true);
+            if (BuildConfig.DEBUG){
+                Log.d("SyncData","Content Online loading...");
+            }
+        }
+
+        @Override
+        protected void onDataExecute(String Result, List<Object> objects,String status) {
+            if (status.equalsIgnoreCase(CNST.Tags.DONE)){
+                setContent(objects);
+                showLoading(false);
+                return;
+            }
+            showFailed();
+
+        }
+    }.execute();
 
 }
